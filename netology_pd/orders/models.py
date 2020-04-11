@@ -1,9 +1,9 @@
 import random
 
+from django.db import models
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
-from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 CHARS_CHOICES = (
@@ -244,15 +244,11 @@ class Order(models.Model):
 
     class Meta:
         verbose_name = 'Заказ'
-        verbose_name_plural = "Список заказ"
+        verbose_name_plural = "Список заказов"
         ordering = ('-dt',)
 
     def __str__(self):
         return str(self.dt)
-
-    # @property
-    # def sum(self):
-    #     return self.ordered_items.aggregate(total=Sum("quantity"))["total"]
 
 
 class OrderItem(models.Model):
@@ -278,7 +274,7 @@ class OrderItem(models.Model):
 
 class Contact(models.Model):
     user = models.ForeignKey(User, verbose_name='Пользователь',
-                             related_name='contacts', blank=True,
+                             related_name='contacts',
                              on_delete=models.CASCADE)
 
     city = models.CharField(max_length=50, verbose_name='Город')
