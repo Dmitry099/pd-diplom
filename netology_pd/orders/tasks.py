@@ -1,61 +1,59 @@
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 
-from orders.models import (ConfirmEmailKey, Order, OrderItem,
-                           STATE_CHOICES, User)
+from orders.models import (ConfirmEmailKey, OrderItem, STATE_CHOICES)
+
+from netology_pd.celery import app
 
 
-@receiver(post_save, sender=User)
-def send_auth_key(sender, instance=None, created=False, **kwargs):
-    """
-    при создании пользователя отправляем письмо с подтверждением регистрации
-    и присваиваем токен
-    """
-    if created:
-        key, _ = ConfirmEmailKey.objects.get_or_create(user_id=instance.id)
+@app.task()
+def send_auth_key_task(instance_id):
+   """
+   при создании пользователя отправляем письмо с подтверждением регистрации
+   и присваиваем токен
+   """
+   key, _ = ConfirmEmailKey.objects.get_or_create(user_id=instance_id)
 
-        msg = EmailMultiAlternatives(
-            # title:
-            f"Confirmation Key for {key.user.email}",
-            # message:
-            key.key,
-            # from:
-            settings.EMAIL_HOST_USER,
-            # to:
-            [key.user.email]
-        )
-        msg.send()
+   msg = EmailMultiAlternatives(
+       # title:
+       f"Confirmation Key for {key.user.email}",
+       # message:
+       key.key,
+       # from:
+       settings.EMAIL_HOST_USER,
+       # to:
+       [key.user.email]
+   )
+   msg.send()
 
 
-@receiver(post_save, sender=Order)
-def send_email(sender, instance=None, created=False, **kwargs):
+@app.task()
+def send_email_task(instance_state, instance_id, instance_e_mail):
     """
     при создании заказа отправляем письмо с подтверждением покупателю
     и письмо администратору магазина о размещении заказа
     """
 
-    if instance.state == STATE_CHOICES[1][0]:
+    if instance_state == STATE_CHOICES[1][0]:
 
         msg = EmailMultiAlternatives(
             # title:
-            f"Размещение заказа №{instance.id}",
+            f"Размещение заказа №{instance_id}",
             # message:
-            f"Номер вашего заказа: {instance.id}\n"
+            f"Номер вашего заказа: {instance_id}\n"
             f"Наш оператор свяжется с вами в "
             f"ближайшее время для уточнения делатей заказа\n"
             f"Статуc заказов вы можете посмотреть в разделе 'Заказы'",
             # from:
             settings.EMAIL_HOST_USER,
             # to:
-            [instance.user.email]
+            [instance_e_mail]
         )
         msg.send()
 
         shop_users = OrderItem.objects.select_related(
             'product_info__shop'
-        ).filter(order__id=instance.id).values_list(
+        ).filter(order__id=instance_id).values_list(
             'product_info__shop__user',
             'product_info__shop__user__email'
         )
@@ -63,18 +61,18 @@ def send_email(sender, instance=None, created=False, **kwargs):
             order_items = list(OrderItem.objects.select_related(
                 'product_info__shop'
             ).filter(
-                order__id=instance.id,
+                order__id=instance_id,
                 product_info__shop__user=shop_user[0]
             ).values_list('id', flat=True))
             if len(order_items) > 1:
-                order_items = ', '.join(order_items)
+                order_items = ', '.join(str(x) for x in order_items)
             else:
                 order_items = order_items[0]
             msg = EmailMultiAlternatives(
                 # title:
-                f"Новый заказ №{instance.id}",
+                f"Новый заказ №{instance_id}",
                 # message:
-                f"По новому заказу №{instance.id} заказанны "
+                f"По новому заказу №{instance_id} заказанны "
                 f"позиции с id {order_items}",
                 # from:
                 settings.EMAIL_HOST_USER,
@@ -82,4 +80,3 @@ def send_email(sender, instance=None, created=False, **kwargs):
                 [shop_user[1]]
             )
             msg.send()
-

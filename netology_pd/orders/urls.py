@@ -1,10 +1,14 @@
 from django.urls import path
+from rest_framework import renderers
 
 from orders.views import (CategoriesView, CartView, ConfirmAccountView,
                           ContactView, LoadInfo, LoginView, OrderView,
                           OrdersView, RegisterView, PasswordConfirmView,
                           PasswordResetView, ProductInfoView, ProductsView,
                           ShopOrders, ShopsView, StateChange, UserView)
+
+shops_list = ShopsView.as_view({'get': 'list'})
+categories_list = CategoriesView.as_view({'get': 'list'})
 
 app_name = 'orders'
 urlpatterns = [
@@ -21,8 +25,8 @@ urlpatterns = [
          name='password-reset'),
     path('user/password_reset/confirm', PasswordConfirmView.as_view(),
          name='password-reset-confirm'),
-    path('categories', CategoriesView.as_view(), name='categories'),
-    path('shops', ShopsView.as_view(), name='shops'),
+    path('categories', categories_list, name='categories'),
+    path('shops', shops_list, name='shops'),
     path('products', ProductsView.as_view(), name='products'),
     path('product_info/<int:product_id>/', ProductInfoView.as_view(),
          name='product_info'),

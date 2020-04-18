@@ -1,6 +1,7 @@
 import ast
 from distutils.util import strtobool
 
+from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,6 +26,7 @@ from .serializers import (CategoriesSerializer, ContactSerializer,
                           ProductSerializer, ProductInfoSerializer,
                           ProductsSerializer,
                           ShopSerializer, UserSerializer)
+from .tasks import send_auth_key_task, send_email_task
 
 
 class CartException(Exception):
@@ -73,6 +75,7 @@ class RegisterView(APIView):
                     user = user_serializer.save()
                     user.set_password(request.data['password'])
                     user.save()
+                    send_auth_key_task.delay(user.id)
                     return JsonResponse({'Status': True})
                 except ValidationError:
                     return JsonResponse({'Status': False,
@@ -193,18 +196,7 @@ class PasswordResetView(APIView):
         except User.DoesNotExist:
             return JsonResponse({'Status': False,
                                  'Errors': 'Неправильно указан email'})
-        key, _ = ConfirmEmailKey.objects.get_or_create(user=user)
-        msg = EmailMultiAlternatives(
-            # title:
-            f"Confirmation Key for {user.email}",
-            # message:
-            key.key,
-            # from:
-            settings.EMAIL_HOST_USER,
-            # to:
-            [user.email]
-        )
-        msg.send()
+        send_auth_key_task.delay(user.id)
         return JsonResponse({'Status': True})
 
 
@@ -244,18 +236,12 @@ class PasswordConfirmView(APIView):
                 return JsonResponse({'Status': True})
 
 
-class ShopsView(APIView):
+class ShopsView(viewsets.ReadOnlyModelViewSet):
     """
     Список магазинов
     """
-
-    @staticmethod
-    def get(request, *args, **kwargs):
-        shops = Shop.objects.all()
-
-        shops_serializer = ShopSerializer(shops, many=True)
-
-        return Response(shops_serializer.data)
+    queryset = Shop.objects.all()
+    serializer_class = ShopSerializer
 
 
 class ProductsView(APIView):
@@ -286,18 +272,12 @@ class ProductsView(APIView):
         return Response(products_serializer.data)
 
 
-class CategoriesView(APIView):
+class CategoriesView(viewsets.ReadOnlyModelViewSet):
     """
-    Список всех категорий
+    Список магазинов
     """
-
-    @staticmethod
-    def get(request, *args, **kwargs):
-        categories = Category.objects.all()
-
-        products_serializer = CategoriesSerializer(categories, many=True)
-
-        return Response(products_serializer.data)
+    queryset = Category.objects.all()
+    serializer_class = CategoriesSerializer
 
 
 class ProductInfoView(APIView):
@@ -680,6 +660,9 @@ class OrderView(APIView):
             order.contact = contact
             order.state = ''.join(STATE_CHOICES[1][0])
             order.save()
+            send_email_task.delay(instance_state=order.state,
+                                  instance_id=order.id,
+                                  instance_e_mail=order.user.email)
             return JsonResponse({'Status': True})
 
 

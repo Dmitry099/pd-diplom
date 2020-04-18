@@ -136,10 +136,10 @@ AUTH_USER_MODEL = 'orders.User'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_USE_TLS = True
 
-EMAIL_HOST = ''
-EMAIL_HOST_USER = ''
-EMAIL_HOST_PASSWORD = ''
-EMAIL_PORT = ''
+EMAIL_HOST = 'smtp.mail.ru'
+EMAIL_HOST_USER = 'dimonovich951@mail.ru'
+EMAIL_HOST_PASSWORD = 'O&areTirYP11'
+EMAIL_PORT = '2525'
 # EMAIL_USE_SSL = True
 SERVER_EMAIL = EMAIL_HOST_USER
 
