@@ -47,26 +47,19 @@ class RegisterView(APIView):
 
     @staticmethod
     def post(request, *args, **kwargs):
-        email = request.data.get('email')
-        first_name = request.data.get('first_name')
-        last_name = request.data.get('last_name')
-        password = request.data.get('password')
-        password_2 = request.data.get('password_2')
 
-        required_fields = [
-            email, first_name, last_name, password, password_2
-        ]
-        if not all(required_fields):
+        if not {'email', 'first_name', 'last_name',
+                'password', 'password_2'}.issubset(request.data):
             return JsonResponse(
                 {'Status': False,
                  'Errors': 'Не указаны все необходимые аргументы'}
             )
-        elif password != password_2:
+        elif request.data['password'] != request.data['password_2']:
             return JsonResponse({'Status': False,
                                  'Errors': 'Переданные пароли не совпадают'})
         else:
             try:
-                validate_password(password)
+                validate_password(request.data['password'])
             except ValidationError as exp:
                 error_list = []
                 for error in exp:
@@ -78,7 +71,7 @@ class RegisterView(APIView):
                 try:
                     user_serializer.is_valid(raise_exception=True)
                     user = user_serializer.save()
-                    user.set_password(password)
+                    user.set_password(request.data['password'])
                     user.save()
                     return JsonResponse({'Status': True})
                 except ValidationError:
@@ -115,19 +108,14 @@ class LoginView(APIView):
     @staticmethod
     def post(request, *args, **kwargs):
 
-        username = request.data.get('email')
-        password = request.data.get('password')
-
-        required_fields = [
-            username, password
-        ]
-        if not all(required_fields):
+        if not {'email', 'password'}.issubset(request.data):
             return JsonResponse(
                 {'Status': False,
                  'Errors': 'Не указаны все необходимые аргументы'}
             )
         else:
-            user = authenticate(request, username=username, password=password)
+            user = authenticate(request, username=request.data['email'],
+                                password=request.data['password'])
             if user is not None and user.is_active:
                 token, _ = Token.objects.get_or_create(user=user)
                 return JsonResponse({'Status': True, 'Token': token.key})
@@ -665,12 +653,7 @@ class OrderView(APIView):
                 'Error': 'Создать заказ доступно только покупателям'
             }, status=403)
 
-        required_fields = [
-            request.data.get('id'),
-            request.data.get('contact_id'),
-        ]
-
-        if not all(required_fields):
+        if not {'id', 'contact_id'}.issubset(request.data):
             return JsonResponse(
                 {'Status': False,
                  'Errors': 'Не указаны все необходимые аргументы'}
@@ -771,13 +754,7 @@ class ContactView(APIView):
                                           'необходима авторизация'},
                                 status=403)
 
-        required_fields = [
-            request.data.get('city'),
-            request.data.get('street'),
-            request.data.get('phone'),
-        ]
-
-        if not all(required_fields):
+        if not {'city', 'street', 'phone'}.issubset(request.data):
             return JsonResponse(
                 {'Status': False,
                  'Errors': 'Не указаны все необходимые аргументы'}
@@ -804,14 +781,7 @@ class ContactView(APIView):
                                           'необходима авторизация'},
                                 status=403)
 
-        required_fields = [
-            request.data.get('city'),
-            request.data.get('street'),
-            request.data.get('phone'),
-            request.data.get('id'),
-        ]
-
-        if not all(required_fields):
+        if not {'city', 'street', 'phone', 'id'}.issubset(request.data):
             return JsonResponse(
                 {'Status': False,
                  'Errors': 'Не указаны все необходимые аргументы'}
