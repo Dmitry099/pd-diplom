@@ -4,18 +4,17 @@ from distutils.util import strtobool
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from yaml import load as load_yaml, Loader
 
-from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.core.mail import EmailMultiAlternatives
 from django.core.validators import URLValidator
 from django.db import IntegrityError, transaction
 from django.db.models import Q, F, Sum, Prefetch
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from requests import get
 
 from .models import (Category, ConfirmEmailKey, Contact, Order, OrderItem,
@@ -248,6 +247,7 @@ class ProductsView(APIView):
     """
     Список всех товаров без описания и привязки к магазину
     """
+    throttle_classes = [AnonRateThrottle]
 
     @staticmethod
     def get(request, *args, **kwargs):
@@ -284,6 +284,7 @@ class ProductInfoView(APIView):
     """
     Карточка товара с описанием и привязкой к магазинам
     """
+    throttle_classes = [AnonRateThrottle]
 
     @staticmethod
     def get(request, product_id=False, *args, **kwargs):
@@ -963,3 +964,7 @@ class ShopOrders(APIView):
         orders_serializer = OrdersSerializer(orders, many=True)
 
         return Response(orders_serializer.data)
+
+
+def empty_view(request, *args, **kwargs):
+    return HttpResponse()
